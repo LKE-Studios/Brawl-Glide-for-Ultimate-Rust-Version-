@@ -30,7 +30,7 @@ static RADIAL_STICK : f32 = 0.25; //#15 Radial Stick Sensitivity
 static UP_ANGLE_ACCEL : f32 = 0.55; //#16 Upward angular acceleration
 static DOWN_ANGLE_ACCEL : f32 = 0.75; //#17 Downward angular acceleration
 static MAX_ANGLE_SPEED : f32 = 7.0; //#18 Maximum angular speed
-static ADD_ANGLE_SPEED : f32 : 1.0; //#19 Added angular speed for when stick is center
+static ADD_ANGLE_SPEED : f32 = 1.0; //#19 Added angular speed for when stick is center
 
 #[status_script(agent = "metaknight", status = FIGHTER_STATUS_KIND_GLIDE_START, condition = LUA_SCRIPT_STATUS_FUNC_STATUS_MAIN)]
 pub unsafe fn glide_start_a(fighter: &mut L2CFighterCommon) -> L2CValue {
@@ -49,7 +49,7 @@ unsafe extern "C" fn glide_start_b(fighter: &mut L2CFighterCommon) -> L2CValue {
 //Init Status stuff from Brawl could go here? WIP
 #[status_script(agent = "metaknight", status = FIGHTER_STATUS_KIND_GLIDE, condition = LUA_SCRIPT_STATUS_FUNC_STATUS_PRE)]
 pub unsafe fn glide_init(fighter: &mut L2CFighterCommon) -> L2CValue {
-    WorkModule::set_float(fighter.module_accessor, BASE_H_SPEED, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_POWER);
+    WorkModule::set_float(fighter.module_accessor, BASE_SPEED, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_POWER);
     WorkModule::set_float(fighter.module_accessor, GRAVITY_SPEED, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_GRAVITY);
     
     KineticEnergy::reset_energy(as *mut KineticEnergy, /*insert lua const here*/, &Vector2f{x: x y: x}, &Vector3f{x: x y: x, z: x}, fighter.module_accessor);
@@ -129,7 +129,7 @@ unsafe extern "C" fn glide_exec_main(fighter: &mut L2CFighterCommon) -> L2CValue
                 new_angle_speed_2nd = -MAX_ANGLE_SPEED;
             }
             if new_angle_speed_2nd > MAX_ANGLE_SPEED {
-                MAX_ANGLE_SPEED = new_angle_speed_2nd; //Writing it like this may not work in Rust
+                new_angle_speed_2nd = MAX_ANGLE_SPEED;
             }
             WorkModule::set_float(fighter.module_accessor, MAX_ANGLE_SPEED, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_ANGLE_SPEED);
             angle = angle + MAX_ANGLE_SPEED;
