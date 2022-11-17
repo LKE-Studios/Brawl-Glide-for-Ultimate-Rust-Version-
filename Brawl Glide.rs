@@ -129,7 +129,7 @@ unsafe extern "C" fn glide_exec_main(fighter: &mut L2CFighterCommon) -> L2CValue
                 new_angle_speed_2nd = -MAX_ANGLE_SPEED;
             }
             if new_angle_speed_2nd > MAX_ANGLE_SPEED {
-                MAX_ANGLE_SPEED = new_angle_speed_2nd;
+                MAX_ANGLE_SPEED = new_angle_speed_2nd; //Writing it like this may not work in Rust
             }
             WorkModule::set_float(fighter.module_accessor, MAX_ANGLE_SPEED, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_ANGLE_SPEED);
             angle = angle + MAX_ANGLE_SPEED;
