@@ -32,7 +32,7 @@ static DOWN_ANGLE_ACCEL : f32 = 0.75; //#17 Downward angular acceleration
 static MAX_ANGLE_SPEED : f32 = 7.0; //#18 Maximum angular speed
 static ADD_ANGLE_SPEED : f32 : 1.0; //#19 Added angular speed for when stick is center
 
-//Init Status stuff from Brawl could go here?
+//Init Status stuff from Brawl could go here? WIP
 #[status_script(agent = "metaknight", status = FIGHTER_STATUS_KIND_GLIDE, condition = LUA_SCRIPT_STATUS_FUNC_STATUS_PRE)]
 pub unsafe fn glide_init(fighter: &mut L2CFighterCommon) -> L2CValue {
     WorkModule::set_float(fighter.module_accessor, BASE_H_SPEED, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_POWER);
