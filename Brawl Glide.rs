@@ -151,6 +151,9 @@ unsafe extern "C" fn glide_exec_main(fighter: &mut L2CFighterCommon) -> L2CValue
     if ControlModule::check_button_trigger(boma, *CONTROL_PAD_BUTTON_ATTACK) {
         fighter.change_status(FIGHTER_STATUS_KIND_GLIDE_ATTACK.into(), true.into());
     }
+    if ControlModule::check_button_trigger(boma, *CONTROL_PAD_BUTTON_SPECIAL) {
+        fighter.change_status(FIGHTER_STATUS_KIND_GLIDE_END.into(), true.into());
+    }
     if is_grounded(fighter.module_accessor) {
         fighter.change_status(FIGHTER_STATUS_KIND_GLIDE_LANDING.into(), true.into());
     }
