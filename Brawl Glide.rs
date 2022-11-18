@@ -9,7 +9,6 @@ use smash::phx::{Vector3f, Hash40};
 use smash_script::*;
 
 pub const PI : f64 = 3.14159265358979323846264338327950288;
-static mut ANGLE : [f32; 8] = [0.0; 8];
 
 static ANGLE_MAX_UP : f32 = 80.0; //#0 Max Upward Angle
 static ANGLE_MAX_DOWN : f32 = -70.0; //#1 Max Downward Angle
@@ -17,13 +16,13 @@ static V_GLIDE_START : f32 = 0.75; //#2 V Speed added on GlideStart
 static GRAVITY_START : f32 = 1.0; //#3 Gravity multiplier on GlideStart
 static SPEED_MUL_START : f32 = 1.0 //#4 H speed multiplier on GlideStart
 static BASE_SPEED : f32 = 1.7; //#5 Base Power/Speed
-static SPEED_CHANGE : f32 = 0.04; //#6 Change of Speed
+static SPEED_CHANGE : f32 = 0.04; //#6 Power Rate
 static MAX_SPEED : f32 = 2.2; //#7 Maximum Speed
-static THRESHOLD : f32 = 0.7; //#8 Another speed threshold
+static END_SPEED : f32 = 0.7; //#8 End Speed
 static GRAVITY_ACCEL : f32 = 0.03; //#9 Gravity Acceleration
 static GRAVITY_SPEED : f32 = 0.6; //#10 Gravity Max Speed
 static ANGLE_EXTRA : f32 = 15.0; //#11 Angle stuff but unknown what this is for
-static ANGLE_F_SPEED : f32 = -25.0; //#12 Angle to gain forward speed
+static ANGLE_MORE_SPEED : f32 = -25.0; //#12 Angle to gain more speed
 static DOWN_SPEED_ADD : f32 = 0.03; //#13 Max added H speed gained aiming downward
 static UNKNOWN : f32 = 0.15; //#14 Unknown
 static RADIAL_STICK : f32 = 0.25; //#15 Radial Stick Sensitivity
@@ -31,6 +30,24 @@ static UP_ANGLE_ACCEL : f32 = 0.55; //#16 Upward angular acceleration
 static DOWN_ANGLE_ACCEL : f32 = 0.75; //#17 Downward angular acceleration
 static MAX_ANGLE_SPEED : f32 = 7.0; //#18 Maximum angular speed
 static ADD_ANGLE_SPEED : f32 = 1.0; //#19 Added angular speed for when stick is center
+
+//Taken from Arthur's lua interpretation. I have no idea what to do about this for Rust/Smashline.
+//Would this be a function hook?
+kinetic_utility = {
+    //resets and enables the kinetic energy type
+    reset_enable_energy = function(energy_id, modules, some_id, speed_vec)
+        energy = modules.kinetic_energy:get_energy(energy_id)
+        energy:reset_energy(some_id, speed_vec)
+        energy.enabled = true
+    end,
+
+    //clears and disables the kinetic energy type
+    clear_unable_energy = function(energy_id)
+        energy = modules.kinetic_energy:get_energy(energy_id)
+        energy:clear_energy(energy_id)
+        energy.enabled = false
+    end
+}
 
 #[status_script(agent = "metaknight", status = FIGHTER_STATUS_KIND_GLIDE_START, condition = LUA_SCRIPT_STATUS_FUNC_STATUS_MAIN)]
 pub unsafe fn glide_start_a(fighter: &mut L2CFighterCommon) -> L2CValue {
@@ -49,13 +66,18 @@ unsafe extern "C" fn glide_start_b(fighter: &mut L2CFighterCommon) -> L2CValue {
 //Init Status stuff from Brawl could go here? WIP
 #[status_script(agent = "metaknight", status = FIGHTER_STATUS_KIND_GLIDE, condition = LUA_SCRIPT_STATUS_FUNC_STATUS_PRE)]
 pub unsafe fn glide_init(fighter: &mut L2CFighterCommon) -> L2CValue {
+    let lr = PostureModule::lr(fighter.module_accessor);
+    let sum_speed_vec = KineticModule::get_sum_speed(fighter.module_accessor, *KINETIC_ENERGY_RESERVE_ATTRIBUTE_MAIN);
+
     WorkModule::set_float(fighter.module_accessor, BASE_SPEED, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_POWER);
-    WorkModule::set_float(fighter.module_accessor, GRAVITY_SPEED, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_GRAVITY);
+    WorkModule::set_float(fighter.module_accessor, sum_speed_vec.y(), *FIGHTER_STATUS_GLIDE_WORK_FLOAT_GRAVITY);
     
-    KineticEnergy::reset_energy(as *mut KineticEnergy, /*insert lua const here*/, &Vector2f{x: x y: x}, &Vector3f{x: x y: x, z: x}, fighter.module_accessor);
-    KineticModule::unable_energy(fighter.module_accessor, *FIGHTER_KINETIC_ENERGY_ID_/*SOMETHING*/ );
+    KineticEnergy::reset_energy(/*Something*/ as *mut KineticEnergy, *FIGHTER_KINETIC_ENERGY_ID_STOP, &Vector2f{x: 1.7 y: 0.0}, &Vector3f{x: x y: x, z: x} /*What is the Vector 3f for?*/, fighter.module_accessor);
+    KineticModule::unable_energy(fighter.module_accessor, *FIGHTER_KINETIC_ENERGY_ID_CONTROL);
+    KineticModule::unable_energy(fighter.module_accessor, *FIGHTER_KINETIC_ENERGY_ID_GRAVITY );
+    KineticModule::unable_energy(fighter.module_accessor, *FIGHTER_KINETIC_ENERGY_ID_MOTION );
     L2CValue::I32(0)
-}
+} //Apparently it's not recommended to add/change motions in STATUS_PRE
 
 //Exec Status stuff from Brawl
 #[status_script(agent = "metaknight", status = FIGHTER_STATUS_KIND_GLIDE, condition = LUA_SCRIPT_STATUS_FUNC_STATUS_MAIN)]
@@ -67,9 +89,7 @@ pub unsafe fn glide_exec(fighter: &mut L2CFighterCommon) -> L2CValue {
 
 unsafe extern "C" fn glide_exec_main(fighter: &mut L2CFighterCommon) -> L2CValue {
     let lr = PostureModule::lr(fighter.module_accessor);
-    /*get_kinetic_energy_descriptor in KineticModule must be called something else in Ultimate since that name doesn't exist. 
-    There is KineticModule::get_energy(fighter.module_accessor, "put lua_const here"); but I don't know if that's what we want*/
-
+    let energy_stop = KineticModule::get_energy(fighter.module_accessor, *FIGHTER_KINETIC_ENERGY_ID_STOP);
     let angle = WorkModule::get_float(fighter.module_accessor, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_ANGLE);
     let angle_speed = WorkModule::get_float(fighter.module_accessor, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_ANGLE_SPEED);
     let stick_angle = ControlModule::get_stick_angle(fighter.module_accessor);
@@ -77,9 +97,16 @@ unsafe extern "C" fn glide_exec_main(fighter: &mut L2CFighterCommon) -> L2CValue
     let stick_y = ControlModule::get_stick_y(fighter.module_accessor);
     let stick_magnitude = (stick_x * stick_x + stick_y * stick_y).sqrt();
     let new_angle_speed = angle_speed + ADD_ANGLE_SPEED;
-    let angle_accel = ??? //What is this?
+    let angle_accel //??? What is this? Isn't it supposed to = anything?
     let scaled_angle_accel = angle_accel * (stick_magnitude - RADIAL_STICK) / (1.0 - RADIAL_STICK);
     let new_angle_speed_2nd = angle_speed + scaled_angle_accel;
+    let power = WorkModule::get_float(fighter.module_accessor, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_POWER);
+    let unrotated = {x: power * lr, y: 0.0}; //Would this work in Rust??
+    let angled = smash::app::sv_math::vec2_rot(angle * lr * PI / 180.0, unrotated, 0.0 /*There's 3rd arg here*/);
+    let gravity = WorkModule::set_float(fighter.module_accessor, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_GRAVITY);
+    let new_gravity = gravity + GRAVITY_ACCEL;
+    let speed = (angled.x() * angled.x() + angled.y() * angled.y()).sqrt();
+    let ratio = MAX_SPEED / speed;
 
     if lr <= 0.0 {
         let above_or_below = -1.0
@@ -140,8 +167,38 @@ unsafe extern "C" fn glide_exec_main(fighter: &mut L2CFighterCommon) -> L2CValue
         if angle > ANGLE_MAX_UP {
             angle = ANGLE_MAX_UP;
         }
-        if WorkModule::off_flag(fighter.module_accessor, *FIGHTER_STATUS_GLIDE_FLAG_STOP) {
-            //WIP
+        if !WorkModule::is_flag(fighter.module_accessor, *FIGHTER_STATUS_GLIDE_FLAG_STOP) {
+            power = power - (angle * SPEED_CHANGE / 90.0);
+            if WorkModule::is_flag(fighter.module_accessor, *FIGHTER_STATUS_GLIDE_FLAG_TOUCH_GROUND) {
+                power = power - 0.01;
+            }
+            if power < 0.0 {
+                power = 0.0
+            }
+            if !WorkModule::is_flag(fighter.module_accessor, *FIGHTER_STATUS_GLIDE_FLAG_RAPID_FALL) {
+                if angle < ANGLE_MORE_SPEED {
+                    power = power + (GRAVITY_ACCEL * (ANGLE_MORE_SPEED - angle) / (ANGLE_MORE_SPEED - ANGLE_MAX_DOWN));
+                }
+                else if angle > 0.0 {
+                    WorkModule::off_flag(fighter.module_accessor, *FIGHTER_STATUS_GLIDE_FLAG_RAPID_FALL);
+                }
+                if new_gravity = gravity > GRAVITY_SPEED {
+                    new_gravity = GRAVITY_SPEED;
+                }
+                WorkModule::set_float(fighter.module_accessor, new_gravity, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_GRAVITY);
+                angled.y() = angled.y() - gravity;
+                if speed > MAX_SPEED {
+                    angled.x() = angled.x() * ratio;
+                    angled.y() = angled.y() * ratio;
+                }
+                if speed < END_SPEED || power <= 0.0 {
+                    WorkModule::on_flag(fighter.module_accessor, *FIGHTER_STATUS_GLIDE_FLAG_STOP);
+                    WorkModule::set_float(fighter.module_accessor, 0.0, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_ANGLE_SPEED);
+                }
+                energy_stop.speed_x() /*Dunno if this is right*/ = angled.x();
+                energy_stop.speed_y() = angled.y()
+                WorkModule::set_float(fighter.module_accessor, power, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_POWER);
+            }
         }
         else {
             //WIP
@@ -160,10 +217,20 @@ unsafe extern "C" fn glide_exec_main(fighter: &mut L2CFighterCommon) -> L2CValue
     0.into()
 }
 
+//Dunno what to do about this here
+function execFixPosition_glide(modules)
+    //checks if you're touching a wall
+    //left wall flag is 0x4, right wall is 0x2, so either wall is 0x6
+    if fighter_util.get_air_ground_touch_info(modules) & 0x6 > 0 then
+    WorkModule::on_flag(fighter.module_accessor, FIGHTER_STATUS_GLIDE_FLAG_TOUCH_GROUND);
+    else
+    WorkModule::off_flag(fighter.module_accessor, FIGHTER_STATUS_GLIDE_FLAG_TOUCH_GROUND);
+    end
+end
+
 #[status_script(agent = "metaknight", status = FIGHTER_STATUS_KIND_GLIDE, condition = LUA_SCRIPT_STATUS_FUNC_STATUS_END)]
 pub unsafe fn glide_finish(fighter: &mut L2CFighterCommon) -> L2CValue {
-    let angle = WorkModule::get_float(fighter.module_accessor, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_ANGLE);
-    angle = 0.0;
+    WorkModule::get_float(fighter.module_accessor, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_ANGLE) = 0.0;
     MotionModule::remove_motion_partial(fighter.module_accessor, *FIGHTER_METAKNIGHT_MOTION_PART_SET_KIND_WING, false);
     L2CValue::I32(0)
 }
