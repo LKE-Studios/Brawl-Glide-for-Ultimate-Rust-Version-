@@ -32,18 +32,19 @@ static MAX_ANGLE_SPEED : f32 = 7.0; //#18 Maximum angular speed
 static ADD_ANGLE_SPEED : f32 = 1.0; //#19 Added angular speed for when stick is center
 
 mod kinetic_utility {
-    /// Resets and enables the kinetic energy type
-    fn reset_enable_energy(module_accessor, energy_id, some_id, speed_vec) {
-        energy = KineticModule::get_energy(module_accessor, energy_id);
+    /// Resets and enables the kinetic energy type.
+    /// Unknown why there are two vectors required by reset_energy
+    fn reset_enable_energy(module_accessor: *mut BattleObjectModuleAccessor, energy_id: i32, some_id: i32, speed_vec: Vector2f, other_vec: Vector3f) {
+        let energy = KineticModule::get_energy(module_accessor, energy_id);
         KineticEnergy.reset_energy(energy, some_id, speed_vec);
         KineticEnergy.enable(energy);
     }
 
     /// Clears and disables the kinetic energy type
-    fn clear_unable_energy(module_accessor, energy_id) {
-        energy = KineticModule:get_energy(module_accessor, energy_id);
+    fn clear_unable_energy(module_accessor: *mut BattleObjectModuleAccessor, energy_id: i32) {
+        let energy = KineticModule:get_energy(module_accessor, energy_id);
         KineticEnergy.clear_energy(energy_id);
-        KineticEnergy.unable_energy(energy_id);
+        KineticEnergy.unable(energy_id);
     }
 }
 
@@ -68,12 +69,13 @@ pub unsafe fn glide_init(fighter: &mut L2CFighterCommon) -> L2CValue {
     let sum_speed_vec = KineticModule::get_sum_speed(fighter.module_accessor, *KINETIC_ENERGY_RESERVE_ATTRIBUTE_MAIN);
 
     WorkModule::set_float(fighter.module_accessor, BASE_SPEED, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_POWER);
-    WorkModule::set_float(fighter.module_accessor, sum_speed_vec.y(), *FIGHTER_STATUS_GLIDE_WORK_FLOAT_GRAVITY);
+    WorkModule::set_float(fighter.module_accessor, -sum_speed_vec.y, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_GRAVITY);
     
-    KineticEnergy::reset_energy(/*Something*/ as *mut KineticEnergy, *FIGHTER_KINETIC_ENERGY_ID_STOP, &Vector2f{x: 1.7 y: 0.0}, &Vector3f{x: x y: x, z: x} /*What is the Vector 3f for?*/, fighter.module_accessor);
-    KineticModule::unable_energy(fighter.module_accessor, *FIGHTER_KINETIC_ENERGY_ID_CONTROL);
-    KineticModule::unable_energy(fighter.module_accessor, *FIGHTER_KINETIC_ENERGY_ID_GRAVITY );
-    KineticModule::unable_energy(fighter.module_accessor, *FIGHTER_KINETIC_ENERGY_ID_MOTION );
+    let initial_speed = BASE_SPEED * lr;
+    kinetic_utility::reset_enable_energy(fighter.module_accessor, *FIGHTER_KINETIC_ENERGY_ID_STOP, 0 /* taking a shot in the dark with 0 */, &Vector2f{x: initial_speed, y: 0.0}, &Vector3f{x: initial_speed, y: 0.0, z: 0.0} /*What is the Vector 3f for?*/);
+    kinetic_utility::clear_unable_energy(fighter.module_accessor, *FIGHTER_KINETIC_ENERGY_ID_CONTROL);
+    kinetic_utility::clear_unable_energy(fighter.module_accessor, *FIGHTER_KINETIC_ENERGY_ID_GRAVITY);
+    kinetic_utility::clear_unable_energy(fighter.module_accessor, *FIGHTER_KINETIC_ENERGY_ID_MOTION);
     L2CValue::I32(0)
 } //Apparently it's not recommended to add/change motions in STATUS_PRE
 
@@ -88,23 +90,9 @@ pub unsafe fn glide_exec(fighter: &mut L2CFighterCommon) -> L2CValue {
 unsafe extern "C" fn glide_exec_main(fighter: &mut L2CFighterCommon) -> L2CValue {
     let lr = PostureModule::lr(fighter.module_accessor);
     let energy_stop = KineticModule::get_energy(fighter.module_accessor, *FIGHTER_KINETIC_ENERGY_ID_STOP);
-    let angle = WorkModule::get_float(fighter.module_accessor, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_ANGLE);
-    let angle_speed = WorkModule::get_float(fighter.module_accessor, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_ANGLE_SPEED);
+    let mut angle = WorkModule::get_float(fighter.module_accessor, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_ANGLE);
+    let mut angle_speed = WorkModule::get_float(fighter.module_accessor, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_ANGLE_SPEED);
     let stick_angle = ControlModule::get_stick_angle(fighter.module_accessor);
-    let stick_x = ControlModule::get_stick_x(fighter.module_accessor);
-    let stick_y = ControlModule::get_stick_y(fighter.module_accessor);
-    let stick_magnitude = (stick_x * stick_x + stick_y * stick_y).sqrt();
-    let new_angle_speed = angle_speed + ADD_ANGLE_SPEED;
-    let angle_accel //??? What is this? Isn't it supposed to = anything?
-    let scaled_angle_accel = angle_accel * (stick_magnitude - RADIAL_STICK) / (1.0 - RADIAL_STICK);
-    let new_angle_speed_2nd = angle_speed + scaled_angle_accel;
-    let power = WorkModule::get_float(fighter.module_accessor, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_POWER);
-    let unrotated = {x: power * lr, y: 0.0}; //Would this work in Rust??
-    let angled = smash::app::sv_math::vec2_rot(angle * lr * PI / 180.0, unrotated, 0.0 /*There's 3rd arg here*/);
-    let gravity = WorkModule::set_float(fighter.module_accessor, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_GRAVITY);
-    let new_gravity = gravity + GRAVITY_ACCEL;
-    let speed = (angled.x() * angled.x() + angled.y() * angled.y()).sqrt();
-    let ratio = MAX_SPEED / speed;
 
     if lr <= 0.0 {
         let above_or_below = -1.0
@@ -116,92 +104,103 @@ unsafe extern "C" fn glide_exec_main(fighter: &mut L2CFighterCommon) -> L2CValue
     else {
         stick_angle = stick_angle * 180.0 / PI;
     }
-    if stick_magnitude <= RADIAL_STICK {
-        if WorkModule::on_flag(fighter.module_accessor, FIGHTER_STATUS_GLIDE_FLAG_STOP) {
-            if angle_speed < 0.0 {
-                angle_speed = 0.0;
-            } 
-            if new_angle_speed < -MAX_ANGLE_SPEED {
-                new_angle_speed = -MAX_ANGLE_SPEED;
-            }
-            if new_angle_speed > MAX_ANGLE_SPEED {
-                new_angle_speed = MAX_ANGLE_SPEED;
-            }
-            WorkModule::set_float(fighter.module_accessor, new_angle_speed, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_ANGLE_SPEED);
-            angle = angle + new_angle_speed;
-        }
-        else {
-            if stick_angle < 0.0 {
-                if stick_angle >= -135.0 {
-                    angle_accel = -DOWN_ANGLE_ACCEL; //What is angle_accel here?
-                }
-                else {
-                    angle_accel = UP_ANGLE_ACCEL;
-                }   
+
+    let stick_x = ControlModule::get_stick_x(fighter.module_accessor);
+    let stick_y = ControlModule::get_stick_y(fighter.module_accessor);
+    let stick_magnitude = (stick_x * stick_x + stick_y * stick_y).sqrt();
+
+    if stick_magnitude > RADIAL_STICK {
+        let mut angle_accel = 0.0;
+        if stick_angle < 0.0 {
+            if stick_angle >= -135.0 {
+                angle_accel = -DOWN_ANGLE_ACCEL; //What is angle_accel here?
             }
             else {
-                if stick_angle >= 45.0 {
-                    angle_accel = UP_ANGLE_ACCEL;
-                }
-                else {
-                    angle_accel = -DOWN_ANGLE_ACCEL;
-                }
-            }  
-            if angle_speed * scaled_angle_accel < 0.0 {
-                angle_speed = 0.0;
-            }
-            if new_angle_speed_2nd < -MAX_ANGLE_SPEED {
-                new_angle_speed_2nd = -MAX_ANGLE_SPEED;
-            }
-            if new_angle_speed_2nd > MAX_ANGLE_SPEED {
-                new_angle_speed_2nd = MAX_ANGLE_SPEED;
-            }
-            WorkModule::set_float(fighter.module_accessor, MAX_ANGLE_SPEED, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_ANGLE_SPEED);
-            angle = angle + MAX_ANGLE_SPEED;
-        }
-        if angle < ANGLE_MAX_DOWN {
-            angle = ANGLE_MAX_DOWN;
-        }
-        if angle > ANGLE_MAX_UP {
-            angle = ANGLE_MAX_UP;
-        }
-        if !WorkModule::is_flag(fighter.module_accessor, *FIGHTER_STATUS_GLIDE_FLAG_STOP) {
-            power = power - (angle * SPEED_CHANGE / 90.0);
-            if WorkModule::is_flag(fighter.module_accessor, *FIGHTER_STATUS_GLIDE_FLAG_TOUCH_GROUND) {
-                power = power - 0.01;
-            }
-            if power < 0.0 {
-                power = 0.0
-            }
-            if !WorkModule::is_flag(fighter.module_accessor, *FIGHTER_STATUS_GLIDE_FLAG_RAPID_FALL) {
-                if angle < ANGLE_MORE_SPEED {
-                    power = power + (GRAVITY_ACCEL * (ANGLE_MORE_SPEED - angle) / (ANGLE_MORE_SPEED - ANGLE_MAX_DOWN));
-                }
-                else if angle > 0.0 {
-                    WorkModule::off_flag(fighter.module_accessor, *FIGHTER_STATUS_GLIDE_FLAG_RAPID_FALL);
-                }
-                if new_gravity = gravity > GRAVITY_SPEED {
-                    new_gravity = GRAVITY_SPEED;
-                }
-                WorkModule::set_float(fighter.module_accessor, new_gravity, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_GRAVITY);
-                angled.y() = angled.y() - gravity;
-                if speed > MAX_SPEED {
-                    angled.x() = angled.x() * ratio;
-                    angled.y() = angled.y() * ratio;
-                }
-                if speed < END_SPEED || power <= 0.0 {
-                    WorkModule::on_flag(fighter.module_accessor, *FIGHTER_STATUS_GLIDE_FLAG_STOP);
-                    WorkModule::set_float(fighter.module_accessor, 0.0, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_ANGLE_SPEED);
-                }
-                energy_stop.speed_x() /*Dunno if this is right*/ = angled.x();
-                energy_stop.speed_y() = angled.y()
-                WorkModule::set_float(fighter.module_accessor, power, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_POWER);
-            }
+                angle_accel = UP_ANGLE_ACCEL;
+            }   
         }
         else {
-            //WIP
+            if stick_angle >= 45.0 {
+                angle_accel = UP_ANGLE_ACCEL;
+            }
+            else {
+                angle_accel = -DOWN_ANGLE_ACCEL;
+            }
+        }
+
+        let scaled_angle_accel = angle_accel * (stick_magnitude - RADIAL_STICK) / (1.0 - RADIAL_STICK);
+
+        if angle_speed * scaled_angle_accel < 0.0 {
+            angle_speed = 0.0;
+        }
+        
+        let mut new_angle_speed = angle_speed + scaled_angle_accel;
+
+        if new_angle_speed < -MAX_ANGLE_SPEED {
+            new_angle_speed = -MAX_ANGLE_SPEED;
+        }
+        if new_angle_speed > MAX_ANGLE_SPEED {
+            new_angle_speed = MAX_ANGLE_SPEED;
+        }
+        WorkModule::set_float(fighter.module_accessor, new_angle_speed, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_ANGLE_SPEED);
+        angle = angle + new_angle_speed;
+    }
+    
+    if angle < ANGLE_MAX_DOWN {
+        angle = ANGLE_MAX_DOWN;
+    }
+    if angle > ANGLE_MAX_UP {
+        angle = ANGLE_MAX_UP;
+    }
+    
+    let power = WorkModule::get_float(fighter.module_accessor, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_POWER);
+    power = power - (angle * SPEED_CHANGE / 90.0);
+    if WorkModule::is_flag(fighter.module_accessor, *FIGHTER_STATUS_GLIDE_FLAG_TOUCH_GROUND) {
+        power = power - 0.01;
+    }
+    if power < 0.0 {
+        power = 0.0
+    }
+
+    if !WorkModule::is_flag(fighter.module_accessor, *FIGHTER_STATUS_GLIDE_FLAG_RAPID_FALL) {
+        if angle < ANGLE_MORE_SPEED {
+            power = power + (DOWN_SPEED_ADD * (ANGLE_MORE_SPEED - angle) / (ANGLE_MORE_SPEED - ANGLE_MAX_DOWN));
         }
     }
+    else if angle > 0.0 {
+        WorkModule::off_flag(fighter.module_accessor, *FIGHTER_STATUS_GLIDE_FLAG_RAPID_FALL);
+    }
+
+    let gravity = WorkModule::set_float(fighter.module_accessor, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_GRAVITY);
+    let mut new_gravity = gravity + GRAVITY_ACCEL;
+    if new_gravity > GRAVITY_SPEED {
+        new_gravity = GRAVITY_SPEED;
+    }
+    WorkModule::set_float(fighter.module_accessor, new_gravity, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_GRAVITY);
+
+    let unrotated = Vector2f { x: power * lr, y: 0.0 };
+    // TODO: probably want to make a new function for this, it doesn't seem like
+    // the vec2_rot function from the game does what we want
+    let mut angled = smash::app::sv_math::vec2_rot(angle * lr * PI / 180.0, unrotated, 0.0 /*There's 3rd arg here*/);
+    angled.y = angled.y - new_gravity
+
+    let speed = (angled.x * angled.x + angled.y * angled.y).sqrt();
+    let ratio = MAX_SPEED / speed;
+
+    if speed > MAX_SPEED {
+        angled.x = angled.x * ratio;
+        angled.y = angled.y * ratio;
+    }
+    if speed < END_SPEED || power <= 0.0 {
+        WorkModule::on_flag(fighter.module_accessor, *FIGHTER_STATUS_GLIDE_FLAG_STOP);
+        WorkModule::set_float(fighter.module_accessor, 0.0, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_ANGLE_SPEED);
+    }
+    // TODO: figure out how to set X and Y speed directly in an Energy
+    energy_stop.speed_x = angled.x;
+    energy_stop.speed_y = angled.y;
+    WorkModule::set_float(fighter.module_accessor, power, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_POWER);
+
+
     MotionModule::set_frame(fighter.module_accessor, 90.0 - angle, false);
     if ControlModule::check_button_trigger(boma, *CONTROL_PAD_BUTTON_ATTACK) {
         fighter.change_status(FIGHTER_STATUS_KIND_GLIDE_ATTACK.into(), true.into());
