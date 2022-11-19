@@ -155,8 +155,8 @@ unsafe extern "C" fn glide_exec_main(fighter: &mut L2CFighterCommon) -> L2CValue
     
     let power = WorkModule::get_float(fighter.module_accessor, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_POWER);
     power = power - (angle * SPEED_CHANGE / 90.0);
-    // instead of setting the status flag for touching the ground
-    // it saves effort to just check if we're touching a wall here
+    // instead of setting the status flag for touching a wall,
+    // we can just check it directly in this code
     if GroundModule::is_touch(fighter.module_accessor, 0x6) {
         power = power - 0.01;
     }
@@ -202,16 +202,17 @@ unsafe extern "C" fn glide_exec_main(fighter: &mut L2CFighterCommon) -> L2CValue
     energy_stop.speed_y = angled.y;
     WorkModule::set_float(fighter.module_accessor, power, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_POWER);
 
-
     MotionModule::set_frame(fighter.module_accessor, 90.0 - angle, false);
+    WorkModule::set_float(fighter.module_accessor, angle, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_ANGLE);
+
+    if is_grounded(fighter.module_accessor) {
+        fighter.change_status(FIGHTER_STATUS_KIND_GLIDE_LANDING.into(), true.into());
+    }
     if ControlModule::check_button_trigger(boma, *CONTROL_PAD_BUTTON_ATTACK) {
         fighter.change_status(FIGHTER_STATUS_KIND_GLIDE_ATTACK.into(), true.into());
     }
     if ControlModule::check_button_trigger(boma, *CONTROL_PAD_BUTTON_SPECIAL) {
         fighter.change_status(FIGHTER_STATUS_KIND_GLIDE_END.into(), true.into());
-    }
-    if is_grounded(fighter.module_accessor) {
-        fighter.change_status(FIGHTER_STATUS_KIND_GLIDE_LANDING.into(), true.into());
     }
     0.into()
 }
