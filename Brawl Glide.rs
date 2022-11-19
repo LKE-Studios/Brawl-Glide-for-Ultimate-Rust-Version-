@@ -5,6 +5,7 @@ use smashline::*;
 use smash::lib::lua_const::*;
 use smash::app::lua_bind::*;
 use smash::hash40;
+use smash::phx::Vector2f;
 use smash::phx::{Vector3f, Hash40};
 use smash_script::*;
 
@@ -270,4 +271,18 @@ unsafe extern "C" fn glide_landing_main(fighter: &mut L2CFighterCommon) -> L2CVa
         fighter.change_status(FIGHTER_STATUS_KIND_DOWN_WAIT.into(), false.into());
     }
     L2CValue::I32(0)
+}
+
+pub fn install() {
+    smashline::install_status_scripts!(
+        glide_start_main_start, 
+        glide_start_main,
+        glide_init,
+        glide_main_start,
+        glide_exec,
+        glide_finish,
+        glide_attack_main_start,
+        glide_end_main_start,
+        glide_landing_main_start
+    );
 }
