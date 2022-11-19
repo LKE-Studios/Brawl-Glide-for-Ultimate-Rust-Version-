@@ -196,10 +196,11 @@ unsafe extern "C" fn glide_exec(fighter: &mut L2CFighterCommon) -> L2CValue {
     }
     WorkModule::set_float(fighter.module_accessor, new_gravity, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_GRAVITY);
 
-    let unrotated = Vector2f { x: power * lr, y: 0.0 };
+    //let unrotated = Vector2f { x: power * lr, y: 0.0 };
     // TODO: probably want to make a new function for this, it doesn't seem like
     // the vec2_rot function from the game does what we want
-    let mut angled = smash::app::sv_math::vec2_rot(angle * lr * PI / 180.0, unrotated, 0.0 /*There's 3rd arg here*/);
+    //let mut angled = smash::app::sv_math::vec2_rot(angle * lr * PI / 180.0, unrotated, 0.0 /*There's 3rd arg here*/);
+    let angled = Vector2f {x: power * cos(angle) * lr, y: power * sin(angle)};
     angled.y = angled.y - new_gravity
 
     let speed = (angled.x * angled.x + angled.y * angled.y).sqrt();
