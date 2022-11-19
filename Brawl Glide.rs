@@ -31,22 +31,20 @@ static DOWN_ANGLE_ACCEL : f32 = 0.75; //#17 Downward angular acceleration
 static MAX_ANGLE_SPEED : f32 = 7.0; //#18 Maximum angular speed
 static ADD_ANGLE_SPEED : f32 = 1.0; //#19 Added angular speed for when stick is center
 
-//Taken from Arthur's lua interpretation. I have no idea what to do about this for Rust/Smashline.
-//Would this be a function hook?
-kinetic_utility = {
-    //resets and enables the kinetic energy type
-    reset_enable_energy = function(energy_id, modules, some_id, speed_vec)
-        energy = modules.kinetic_energy:get_energy(energy_id)
-        energy:reset_energy(some_id, speed_vec)
-        energy.enabled = true
-    end,
+mod kinetic_utility {
+    /// Resets and enables the kinetic energy type
+    fn reset_enable_energy(module_accessor, energy_id, some_id, speed_vec) {
+        energy = KineticModule::get_energy(module_accessor, energy_id);
+        KineticEnergy.reset_energy(energy, some_id, speed_vec);
+        KineticEnergy.enable(energy);
+    }
 
-    //clears and disables the kinetic energy type
-    clear_unable_energy = function(energy_id)
-        energy = modules.kinetic_energy:get_energy(energy_id)
-        energy:clear_energy(energy_id)
-        energy.enabled = false
-    end
+    /// Clears and disables the kinetic energy type
+    fn clear_unable_energy(module_accessor, energy_id) {
+        energy = KineticModule:get_energy(module_accessor, energy_id);
+        KineticEnergy.clear_energy(energy_id)
+        KineticEnergy.unable_energy(energy_id)
+    }
 }
 
 #[status_script(agent = "metaknight", status = FIGHTER_STATUS_KIND_GLIDE_START, condition = LUA_SCRIPT_STATUS_FUNC_STATUS_MAIN)]
