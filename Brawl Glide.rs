@@ -155,7 +155,9 @@ unsafe extern "C" fn glide_exec_main(fighter: &mut L2CFighterCommon) -> L2CValue
     
     let power = WorkModule::get_float(fighter.module_accessor, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_POWER);
     power = power - (angle * SPEED_CHANGE / 90.0);
-    if WorkModule::is_flag(fighter.module_accessor, *FIGHTER_STATUS_GLIDE_FLAG_TOUCH_GROUND) {
+    // instead of setting the status flag for touching the ground
+    // it saves effort to just check if we're touching a wall here
+    if GroundModule::is_touch(fighter.module_accessor, 0x6) {
         power = power - 0.01;
     }
     if power < 0.0 {
@@ -213,17 +215,6 @@ unsafe extern "C" fn glide_exec_main(fighter: &mut L2CFighterCommon) -> L2CValue
     }
     0.into()
 }
-
-//Dunno what to do about this here
-function execFixPosition_glide(modules)
-    //checks if you're touching a wall
-    //left wall flag is 0x4, right wall is 0x2, so either wall is 0x6
-    if fighter_util.get_air_ground_touch_info(modules) & 0x6 > 0 then
-    WorkModule::on_flag(fighter.module_accessor, FIGHTER_STATUS_GLIDE_FLAG_TOUCH_GROUND);
-    else
-    WorkModule::off_flag(fighter.module_accessor, FIGHTER_STATUS_GLIDE_FLAG_TOUCH_GROUND);
-    end
-end
 
 #[status_script(agent = "metaknight", status = FIGHTER_STATUS_KIND_GLIDE, condition = LUA_SCRIPT_STATUS_FUNC_STATUS_END)]
 pub unsafe fn glide_finish(fighter: &mut L2CFighterCommon) -> L2CValue {
