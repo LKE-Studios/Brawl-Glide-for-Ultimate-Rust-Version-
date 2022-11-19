@@ -42,8 +42,8 @@ mod kinetic_utility {
     /// Clears and disables the kinetic energy type
     fn clear_unable_energy(module_accessor, energy_id) {
         energy = KineticModule:get_energy(module_accessor, energy_id);
-        KineticEnergy.clear_energy(energy_id)
-        KineticEnergy.unable_energy(energy_id)
+        KineticEnergy.clear_energy(energy_id);
+        KineticEnergy.unable_energy(energy_id);
     }
 }
 
