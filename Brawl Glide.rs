@@ -89,11 +89,13 @@ unsafe extern "C" fn glide_main(fighter: &mut L2CFighterCommon) -> L2CValue {
     if is_grounded(fighter.module_accessor) {
         fighter.change_status(FIGHTER_STATUS_KIND_GLIDE_LANDING.into(), true.into());
     }
-    if 
-    if ControlModule::check_button_trigger(boma, *CONTROL_PAD_BUTTON_ATTACK) {
+    if WorkModule::is_flag(fighter.module_accessor, *FIGHTER_STATUS_GLIDE_FLAG_STOP) {
+        fighter.change_status(FIGHTER_STATUS_KIND_GLIDE_END.into(), true.into());
+    }
+    if ControlModule::check_button_trigger(fighter.module_accessor, *CONTROL_PAD_BUTTON_ATTACK) {
         fighter.change_status(FIGHTER_STATUS_KIND_GLIDE_ATTACK.into(), true.into());
     }
-    if ControlModule::check_button_trigger(boma, *CONTROL_PAD_BUTTON_SPECIAL) {
+    if ControlModule::check_button_trigger(fighter.module_accessor, *CONTROL_PAD_BUTTON_SPECIAL) {
         fighter.change_status(FIGHTER_STATUS_KIND_GLIDE_END.into(), true.into());
     }
     0.into()
