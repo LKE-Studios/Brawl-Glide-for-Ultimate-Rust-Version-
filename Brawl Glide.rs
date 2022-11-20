@@ -9,13 +9,13 @@ use smash::phx::Vector2f;
 use smash::phx::{Vector3f, Hash40};
 use smash_script::*;
 
-pub const PI : f64 = 3.14159265358979323846264338327950288;
+pub const PI : f32 = 3.14159265358979323846264338327950288;
 
 static ANGLE_MAX_UP : f32 = 80.0; //#0 Max Upward Angle
 static ANGLE_MAX_DOWN : f32 = -70.0; //#1 Max Downward Angle
 static V_GLIDE_START : f32 = 0.75; //#2 V Speed added on GlideStart
 static GRAVITY_START : f32 = 1.0; //#3 Gravity multiplier on GlideStart
-static SPEED_MUL_START : f32 = 1.0 //#4 H speed multiplier on GlideStart
+static SPEED_MUL_START : f32 = 1.0; //#4 H speed multiplier on GlideStart
 static BASE_SPEED : f32 = 1.7; //#5 Base Power/Speed
 static SPEED_CHANGE : f32 = 0.04; //#6 Power Rate
 static MAX_SPEED : f32 = 2.2; //#7 Maximum Speed
@@ -35,15 +35,15 @@ static ADD_ANGLE_SPEED : f32 = 1.0; //#19 Added angular speed for when stick is 
 mod kinetic_utility {
     /// Resets and enables the kinetic energy type.
     /// Unknown why there are two vectors required by reset_energy
-    fn reset_enable_energy(module_accessor: *mut BattleObjectModuleAccessor, energy_id: i32, some_id: i32, speed_vec: Vector2f, other_vec: Vector3f) {
+    pub fn reset_enable_energy(module_accessor: *mut smash::app::BattleObjectModuleAccessor, energy_id: i32, some_id: i32, speed_vec: smash::phx::Vector2f, other_vec: smash::phx::Vector3f) {
         let energy = KineticModule::get_energy(module_accessor, energy_id);
         KineticEnergy.reset_energy(energy, some_id, speed_vec);
         KineticEnergy.enable(energy);
     }
 
     /// Clears and disables the kinetic energy type
-    fn clear_unable_energy(module_accessor: *mut BattleObjectModuleAccessor, energy_id: i32) {
-        let energy = KineticModule:get_energy(module_accessor, energy_id);
+    pub fn clear_unable_energy(module_accessor: *mut smash::app::BattleObjectModuleAccessor, energy_id: i32) {
+        let energy = KineticModule::get_energy(module_accessor, energy_id);
         KineticEnergy.clear_energy(energy_id);
         KineticEnergy.unable(energy_id);
     }
@@ -72,7 +72,7 @@ pub unsafe fn glide_init(fighter: &mut L2CFighterCommon) -> L2CValue {
     WorkModule::set_float(fighter.module_accessor, -sum_speed_vec.y, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_GRAVITY);
     
     let initial_speed = BASE_SPEED * lr;
-    kinetic_utility::reset_enable_energy(fighter.module_accessor, *FIGHTER_KINETIC_ENERGY_ID_STOP, 0 /* taking a shot in the dark with 0 */, &Vector2f{x: initial_speed, y: 0.0}, &Vector3f{x: initial_speed, y: 0.0, z: 0.0} /*What is the Vector 3f for?*/);
+    kinetic_utility::reset_enable_energy(fighter.module_accessor, *FIGHTER_KINETIC_ENERGY_ID_STOP, 0 /* taking a shot in the dark with 0 */, Vector2f{x: initial_speed, y: 0.0}, Vector3f{x: initial_speed, y: 0.0, z: 0.0} /*What is the Vector 3f for?*/);
     kinetic_utility::clear_unable_energy(fighter.module_accessor, *FIGHTER_KINETIC_ENERGY_ID_CONTROL);
     kinetic_utility::clear_unable_energy(fighter.module_accessor, *FIGHTER_KINETIC_ENERGY_ID_GRAVITY);
     kinetic_utility::clear_unable_energy(fighter.module_accessor, *FIGHTER_KINETIC_ENERGY_ID_MOTION);
@@ -111,7 +111,7 @@ unsafe extern "C" fn glide_exec(fighter: &mut L2CFighterCommon) -> L2CValue {
     let stick_angle = ControlModule::get_stick_angle(fighter.module_accessor);
 
     if lr <= 0.0 {
-        let above_or_below = -1.0
+        let above_or_below = -1.0;
         if stick_angle > 0.0 {
             above_or_below = 1.0;
         }
@@ -201,7 +201,7 @@ unsafe extern "C" fn glide_exec(fighter: &mut L2CFighterCommon) -> L2CValue {
     // the vec2_rot function from the game does what we want
     //let mut angled = smash::app::sv_math::vec2_rot(angle * lr * PI / 180.0, unrotated, 0.0 /*There's 3rd arg here*/);
     let angled = Vector2f {x: power * angle.cos() * lr, y: power * angle.sin()};
-    angled.y = angled.y - new_gravity
+    angled.y = angled.y - new_gravity;
 
     let speed = (angled.x * angled.x + angled.y * angled.y).sqrt();
     let ratio = MAX_SPEED / speed;
