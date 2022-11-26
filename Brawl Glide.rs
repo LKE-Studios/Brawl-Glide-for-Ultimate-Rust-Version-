@@ -35,9 +35,9 @@ static ADD_ANGLE_SPEED : f32 = 1.0; //#19 Added angular speed for when stick is 
 mod kinetic_utility {
     // Resets and enables the kinetic energy type.
     // Unknown why there are two vectors required by reset_energy
-    pub unsafe fn reset_enable_energy(module_accessor: *mut smash::app::BattleObjectModuleAccessor, energy_id: i32, some_id: i32, speed_vec: smash::phx::Vector2f, other_vec: smash::phx::Vector3f) {
+    pub unsafe fn reset_enable_energy(module_accessor: *mut smash::app::BattleObjectModuleAccessor, energy_id: i32, energy_reset_type: i32, speed_vec: smash::phx::Vector2f, other_vec: smash::phx::Vector3f) {
         let energy = smash::app::lua_bind::KineticModule::get_energy(module_accessor, energy_id) as *mut smash::app::KineticEnergy;
-        smash::app::lua_bind::KineticEnergy::reset_energy(energy, some_id, &speed_vec, &other_vec, module_accessor);
+        smash::app::lua_bind::KineticEnergy::reset_energy(energy, energy_reset_type, &speed_vec, &other_vec, module_accessor);
         smash::app::lua_bind::KineticEnergy::enable(energy);
     }
 
@@ -72,7 +72,7 @@ pub unsafe fn glide_init(fighter: &mut L2CFighterCommon) -> L2CValue {
     WorkModule::set_float(fighter.module_accessor, -sum_speed_y, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_GRAVITY);
     
     let initial_speed = BASE_SPEED * lr;
-    kinetic_utility::reset_enable_energy(fighter.module_accessor, *FIGHTER_KINETIC_ENERGY_ID_STOP, 0 /* taking a shot in the dark with 0 */, Vector2f{x: initial_speed, y: 0.0}, Vector3f{x: initial_speed, y: 0.0, z: 0.0} /*What is the Vector 3f for?*/);
+    kinetic_utility::reset_enable_energy(fighter.module_accessor, *FIGHTER_KINETIC_ENERGY_ID_STOP, *ENERGY_STOP_RESET_TYPE_FREE, Vector2f{x: initial_speed, y: 0.0}, Vector3f{x: initial_speed, y: 0.0, z: 0.0} /*What is the Vector 3f for?*/);
     kinetic_utility::clear_unable_energy(fighter.module_accessor, *FIGHTER_KINETIC_ENERGY_ID_CONTROL);
     kinetic_utility::clear_unable_energy(fighter.module_accessor, *FIGHTER_KINETIC_ENERGY_ID_GRAVITY);
     kinetic_utility::clear_unable_energy(fighter.module_accessor, *FIGHTER_KINETIC_ENERGY_ID_MOTION);
@@ -218,6 +218,7 @@ unsafe extern "C" fn glide_exec(fighter: &mut L2CFighterCommon) -> L2CValue {
     //energy_stop.speed_x = angled.x;
     //energy_stop.speed_y = angled.y;
     sv_kinetic_energy!(set_speed, fighter, *FIGHTER_KINETIC_ENERGY_ID_STOP, angled.x, angled.y);
+    sv_kinetic_energy!(set_stable_speed, fighter, *FIGHTER_KINETIC_ENERGY_ID_STOP, angled.x, angled.y);
     WorkModule::set_float(fighter.module_accessor, power, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_POWER);
     MotionModule::set_frame(fighter.module_accessor, 90.0 - angle, false);
     WorkModule::set_float(fighter.module_accessor, angle, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_ANGLE);
