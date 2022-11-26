@@ -108,10 +108,10 @@ unsafe extern "C" fn glide_exec(fighter: &mut L2CFighterCommon) -> L2CValue {
     let energy_stop = KineticModule::get_energy(fighter.module_accessor, *FIGHTER_KINETIC_ENERGY_ID_STOP);
     let mut angle = WorkModule::get_float(fighter.module_accessor, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_ANGLE);
     let mut angle_speed = WorkModule::get_float(fighter.module_accessor, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_ANGLE_SPEED);
-    let stick_angle = ControlModule::get_stick_angle(fighter.module_accessor);
+    let mut stick_angle = ControlModule::get_stick_angle(fighter.module_accessor);
 
     if lr <= 0.0 {
-        let above_or_below = -1.0;
+        let mut above_or_below = -1.0;
         if stick_angle > 0.0 {
             above_or_below = 1.0;
         }
@@ -169,7 +169,7 @@ unsafe extern "C" fn glide_exec(fighter: &mut L2CFighterCommon) -> L2CValue {
         angle = ANGLE_MAX_UP;
     }
     
-    let power = WorkModule::get_float(fighter.module_accessor, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_POWER);
+    let mut power = WorkModule::get_float(fighter.module_accessor, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_POWER);
     power = power - (angle * SPEED_CHANGE / 90.0);
     // instead of setting the status flag for touching a wall,
     // we can just check it directly in this code
@@ -200,7 +200,7 @@ unsafe extern "C" fn glide_exec(fighter: &mut L2CFighterCommon) -> L2CValue {
     // TODO: probably want to make a new function for this, it doesn't seem like
     // the vec2_rot function from the game does what we want
     //let mut angled = smash::app::sv_math::vec2_rot(angle * lr * PI / 180.0, unrotated, 0.0 /*There's 3rd arg here*/);
-    let angled = Vector2f {x: power * angle.cos() * lr, y: power * angle.sin()};
+    let mut angled = Vector2f {x: power * angle.cos() * lr, y: power * angle.sin()};
     angled.y = angled.y - new_gravity;
 
     let speed = (angled.x * angled.x + angled.y * angled.y).sqrt();
