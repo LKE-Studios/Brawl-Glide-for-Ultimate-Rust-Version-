@@ -35,15 +35,15 @@ static ADD_ANGLE_SPEED : f32 = 1.0; //#19 Added angular speed for when stick is 
 mod kinetic_utility {
     // Resets and enables the kinetic energy type.
     // Unknown why there are two vectors required by reset_energy
-    pub fn reset_enable_energy(module_accessor: *mut smash::app::BattleObjectModuleAccessor, energy_id: i32, some_id: i32, speed_vec: smash::phx::Vector2f, other_vec: smash::phx::Vector3f) {
-        let energy = smash::app::lua_bind::KineticModule::get_energy(module_accessor, energy_id);
-        smash::app::lua_bind::KineticEnergy::reset_energy(energy, some_id, speed_vec);
+    pub unsafe fn reset_enable_energy(module_accessor: *mut smash::app::BattleObjectModuleAccessor, energy_id: i32, some_id: i32, speed_vec: smash::phx::Vector2f, other_vec: smash::phx::Vector3f) {
+        let energy = smash::app::lua_bind::KineticModule::get_energy(module_accessor, energy_id) as *mut smash::app::KineticEnergy;
+        smash::app::lua_bind::KineticEnergy::reset_energy(energy, some_id, &speed_vec, &other_vec, module_accessor);
         smash::app::lua_bind::KineticEnergy::enable(energy);
     }
 
     // Clears and disables the kinetic energy type
-    pub fn clear_unable_energy(module_accessor: *mut smash::app::BattleObjectModuleAccessor, energy_id: i32) {
-        let energy = smash::app::lua_bind::KineticModule::get_energy(module_accessor, energy_id);
+    pub unsafe fn clear_unable_energy(module_accessor: *mut smash::app::BattleObjectModuleAccessor, energy_id: i32) {
+        let energy = smash::app::lua_bind::KineticModule::get_energy(module_accessor, energy_id) as *mut smash::app::KineticEnergy;
         smash::app::lua_bind::KineticEnergy::clear_speed(energy);
         smash::app::lua_bind::KineticEnergy::unable(energy);
     }
@@ -66,10 +66,10 @@ unsafe extern "C" fn glide_start_main(fighter: &mut L2CFighterCommon) -> L2CValu
 #[status_script(agent = "metaknight", status = FIGHTER_STATUS_KIND_GLIDE, condition = LUA_SCRIPT_STATUS_FUNC_INIT_STATUS)]
 pub unsafe fn glide_init(fighter: &mut L2CFighterCommon) -> L2CValue {
     let lr = PostureModule::lr(fighter.module_accessor);
-    let sum_speed_vec = KineticModule::get_sum_speed(fighter.module_accessor, *KINETIC_ENERGY_RESERVE_ATTRIBUTE_MAIN);
+    let sum_speed_y = KineticModule::get_sum_speed_y(fighter.module_accessor, *KINETIC_ENERGY_RESERVE_ATTRIBUTE_MAIN);
 
     WorkModule::set_float(fighter.module_accessor, BASE_SPEED, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_POWER);
-    WorkModule::set_float(fighter.module_accessor, -sum_speed_vec.y(), *FIGHTER_STATUS_GLIDE_WORK_FLOAT_GRAVITY);
+    WorkModule::set_float(fighter.module_accessor, -sum_speed_y, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_GRAVITY);
     
     let initial_speed = BASE_SPEED * lr;
     kinetic_utility::reset_enable_energy(fighter.module_accessor, *FIGHTER_KINETIC_ENERGY_ID_STOP, 0 /* taking a shot in the dark with 0 */, Vector2f{x: initial_speed, y: 0.0}, Vector3f{x: initial_speed, y: 0.0, z: 0.0} /*What is the Vector 3f for?*/);
