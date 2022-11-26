@@ -213,8 +213,9 @@ unsafe extern "C" fn glide_exec(fighter: &mut L2CFighterCommon) -> L2CValue {
         WorkModule::set_float(fighter.module_accessor, 0.0, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_ANGLE_SPEED);
     }
     // TODO: figure out how to set X and Y speed directly in an Energy
-    energy_stop.speed_x = angled.x;
-    energy_stop.speed_y = angled.y;
+    //energy_stop.speed_x = angled.x;
+    //energy_stop.speed_y = angled.y;
+    sv_kinetic_energy!(set_speed, fighter, *FIGHTER_KINETIC_ENERGY_ID_STOP, angled.x, angled.y);
     WorkModule::set_float(fighter.module_accessor, power, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_POWER);
     MotionModule::set_frame(fighter.module_accessor, 90.0 - angle, false);
     WorkModule::set_float(fighter.module_accessor, angle, *FIGHTER_STATUS_GLIDE_WORK_FLOAT_ANGLE);
