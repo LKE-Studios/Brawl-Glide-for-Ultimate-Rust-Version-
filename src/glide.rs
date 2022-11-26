@@ -38,7 +38,7 @@ impl GlideParams {
         if kind == *FIGHTER_KIND_METAKNIGHT {
             GlideParams {
                 angle_max_up : 80.0,
-                angle_max_down : 70.0,
+                angle_max_down : -70.0,
                 v_glide_start : 0.75,
                 gravity_start : 1.0,
                 speed_mul_start : 1.0,
@@ -54,7 +54,7 @@ impl GlideParams {
                 unknown : 0.15,
                 radial_stick : 0.25,
                 up_angle_accel : 0.55,
-                down_angle_accel : 0.7,
+                down_angle_accel : 0.75,
                 max_angle_speed : 7.0,
                 add_angle_speed : 1.0
             }
@@ -63,7 +63,7 @@ impl GlideParams {
             // if fighter kind not defined, just use Meta Knight's params.
             GlideParams {
                 angle_max_up : 80.0,
-                angle_max_down : 70.0,
+                angle_max_down : -70.0,
                 v_glide_start : 0.75,
                 gravity_start : 1.0,
                 speed_mul_start : 1.0,
@@ -79,7 +79,7 @@ impl GlideParams {
                 unknown : 0.15,
                 radial_stick : 0.25,
                 up_angle_accel : 0.55,
-                down_angle_accel : 0.7,
+                down_angle_accel : 0.75,
                 max_angle_speed : 7.0,
                 add_angle_speed : 1.0
             }
