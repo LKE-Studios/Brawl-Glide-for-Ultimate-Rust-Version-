@@ -200,7 +200,7 @@ unsafe extern "C" fn glide_exec(fighter: &mut L2CFighterCommon) -> L2CValue {
     // TODO: probably want to make a new function for this, it doesn't seem like
     // the vec2_rot function from the game does what we want
     //let mut angled = smash::app::sv_math::vec2_rot(angle * lr * PI / 180.0, unrotated, 0.0 /*There's 3rd arg here*/);
-    let mut angled = Vector2f {x: power * angle.cos() * lr, y: power * angle.sin()};
+    let mut angled = Vector2f {x: power * angle.to_radians().cos() * lr, y: power * angle.to_radians().sin()};
     angled.y = angled.y - new_gravity;
 
     let speed = (angled.x * angled.x + angled.y * angled.y).sqrt();
